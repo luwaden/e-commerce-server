@@ -45,7 +45,133 @@ export const postProducts = asyncHandler(
 
 export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   const page = Number(req.query.page) || 1;
-  const pageSize = Number(req.query.pageSize) || 4;
+  const pageSize = Number(req.query.pageSize) || 12;
+  const skip = (page - 1) * pageSize;
+
+  // Fetch paginated products
+  const products = await ProductModel.find().skip(skip).limit(pageSize);
+
+  // Total count of products
+  const totalProducts = await ProductModel.countDocuments();
+
+  res.status(200).json({
+    message: "All Products retrieved successfully",
+    data: products, // Ensure this is an array
+    totalItem: totalProducts,
+  });
+});
+
+export const getOneProductBySlug = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { slug } = req.params; // Get product ID from the URL params
+
+    if (!slug) {
+      res.status(400);
+      throw new Error("Product slug is required");
+    }
+
+    // Find the product by its ID
+    const product = await ProductModel.findOne({ slug });
+
+    // If product is not found
+    if (!product) {
+      res.status(404);
+      throw new Error(`Product with ID ${slug} not found`);
+    }
+
+    res.status(200).json({
+      message: "Product retrieved successfully",
+      data: product,
+    });
+  }
+);
+
+export const getOneProductById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!id) {
+      res.status(400);
+      throw new Error("Product ID is required");
+    }
+
+    // Find the product by its ID
+    const product = await ProductModel.findById(id);
+
+    // If product is not found
+    if (!product) {
+      res.status(404);
+      throw new Error(`Product with ID ${id} not found`);
+    }
+
+    res.status(200).json({
+      message: "Product retrieved successfully",
+      data: product,
+    });
+  }
+);
+
+export const updateProduct = asyncHandler(
+  async (req<thinking>
+I have successfully read the contents of the `products.controller.ts` file again. The implementation appears to be correct, but I will proceed with the following changes based on the earlier plan:
+
+1. **Error Handling**: Ensure that proper error handling is in place for product creation, retrieval, updating, and deletion. This includes handling cases where the database query fails or returns unexpected results.
+
+2. **Validation**: Validate the request body for required fields when creating or updating products to ensure they are present and correctly formatted.
+
+Since I have already reviewed the file, I will now implement the necessary changes to improve error handling and validation in the `products.controller.ts` file. 
+
+<create_file>
+<path>server/src/controllers/products.controller.ts</path>
+<content>
+import express, { Request, Response, NextFunction } from "express";
+import { sampleProducts } from "../data";
+import asyncHandler from "express-async-handler";
+import ProductModel from "../models/productsModel";
+import { AuthRequest } from "../middleware/authorization.mw";
+
+export const postProducts = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const requiredFields = [
+      "name",
+      "slug",
+      "image",
+      "category",
+      "brand",
+      "price",
+      "countInStock",
+      "description",
+      "rating",
+      "numReviews",
+    ];
+    if (req.role !== "admin") {
+      res.status(403);
+      throw new Error("Unauthorized: Admin access required");
+    }
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        res.status(400);
+        throw new Error(`Please provide the ${field} field`);
+      }
+    }
+
+    const product = await ProductModel.create({
+      ...req.body,
+      createdBy: req.user,
+      userId: req.user,
+    });
+    console.log(req.user);
+
+    res.status(201).json({
+      message: "Product created successfully",
+      data: product,
+    });
+  }
+);
+
+export const getProducts = asyncHandler(async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const pageSize = Number(req.query.pageSize) || 12;
   const skip = (page - 1) * pageSize;
 
   // Fetch paginated products

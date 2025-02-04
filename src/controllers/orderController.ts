@@ -4,7 +4,6 @@ import Order from "../models/orderModel";
 import Product from "../models/productsModel";
 import { PaymentStatus, OrderStatus } from "../utils/enumsUtil";
 
-// Create a new order
 export const createOrder = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const { userId, items, shippingAddress } = req.body;
@@ -67,6 +66,19 @@ export const createOrder = asyncHandler(
       message: "Order created successfully",
       data: order,
     });
+  }
+);
+
+export const getOrderById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      res.status(404);
+      throw new Error("Order not found");
+    }
+
+    res.json(order);
   }
 );
 
