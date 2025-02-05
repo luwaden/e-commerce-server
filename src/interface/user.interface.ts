@@ -6,6 +6,8 @@ export interface IUser extends Document {
   userName: string;
   isVerified: boolean;
   role: string;
+  profileImage: string;
+  phoneNumber: string;
 }
 
 export interface IMailOptions {

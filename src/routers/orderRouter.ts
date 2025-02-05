@@ -8,9 +8,9 @@ import {
 
 const orderRouter = Router();
 
-orderRouter.post("/cart/", createOrder);
-orderRouter.put("/cart/:id", updateOrder);
-orderRouter.delete("/cart/:id", deleteOrder);
-orderRouter.get("/:id", getOrderById); // <-- Add this
+orderRouter.post("/order/", createOrder);
+orderRouter.put("/order/:id", updateOrder);
+orderRouter.delete("/order/:id", deleteOrder);
+orderRouter.get("order/:id", getOrderById); // <-- Add this
 
 export default orderRouter;
