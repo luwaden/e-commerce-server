@@ -1,13 +1,10 @@
 import { Router } from "express";
-import {
-  initializePayment,
-  refundPayment,
-  verifyPayment,
-} from "../controllers/paymentController";
+import { paymentController } from "../controllers/paymentController";
 
 const paymentRouter = Router();
-paymentRouter.post("/payment", initializePayment);
-paymentRouter.post("/payment", verifyPayment);
-paymentRouter.post("/payment", refundPayment);
+paymentRouter.post("/payment/initialize", paymentController.initializePayment);
+paymentRouter.post("/payment/verify", paymentController.verifyPayment);
+paymentRouter.post("/payment/refund", paymentController.refundPayment);
+paymentRouter.post("/payment/webhook", paymentController.handleWebhook);
 
 export default paymentRouter;

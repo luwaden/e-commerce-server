@@ -1,10 +1,15 @@
-import { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 
-export interface IPayment extends Document {
-  userId: Types.ObjectId;
-  orderId: Types.ObjectId;
-  paymentMethod: string;
-  paymentStatus: string;
+import { PaymentStatus } from "../utils/enumsUtil";
+
+// 💰 Payment Interface
+export interface Payment extends Document {
+  userId: mongoose.Types.ObjectId;
+  orderId: mongoose.Types.ObjectId;
   transactionId: string;
+  paymentReference: string;
+  paymentStatus: PaymentStatus;
   amount: number;
+  isPaid: boolean;
+  paidAt?: Date;
 }

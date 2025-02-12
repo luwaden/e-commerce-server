@@ -1,8 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import { IOrder } from "../interface/orderInterface";
 import { OrderStatus, PaymentStatus } from "../utils/enumsUtil";
-
-const OrderSchema: Schema<IOrder> = new Schema(
+const orderSchema = new Schema<IOrder>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: [
@@ -12,33 +11,32 @@ const OrderSchema: Schema<IOrder> = new Schema(
           ref: "Product",
           required: true,
         },
-        quantity: { type: Number, required: true, min: 1 },
-        price: { type: Number, required: true, min: 0 },
+        quantity: { type: Number, required: true },
       },
     ],
     shippingAddress: {
-      street: { type: String, required: true },
+      fullName: { type: String, required: true },
+      address: { type: String, required: true },
       city: { type: String, required: true },
-      state: { type: String, required: true },
-      zipcode: { type: String, required: true },
+      postalCode: { type: String, required: true },
       country: { type: String, required: true },
     },
+
+    totalPrice: { type: Number, required: true },
     paymentStatus: {
       type: String,
-      enum: Object.values(PaymentStatus),
+      enum: Object.values(PaymentStatus) as string[],
       default: PaymentStatus.Pending,
     },
     orderStatus: {
       type: String,
-      enum: Object.values(OrderStatus),
+      enum: Object.values(OrderStatus) as string[],
       default: OrderStatus.Processing,
     },
-    totalPrice: { type: Number, required: true, min: 0 },
+    paymentReference: { type: String, unique: true }, // ✅ Add this field
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const Order = mongoose.model<IOrder>("Order", OrderSchema);
+const Order = mongoose.model<IOrder>("Order", orderSchema);
 export default Order;

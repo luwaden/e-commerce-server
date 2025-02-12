@@ -7,17 +7,8 @@ const productSchema = new Schema<IProduct>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    updatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
+
     name: { type: String, required: true, unique: true },
     slug: { type: String, required: true, unique: true },
     image: { type: String, required: true, unique: true },

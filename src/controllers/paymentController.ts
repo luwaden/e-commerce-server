@@ -1,134 +1,71 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
+import { paymentServices } from "../services/paymentServices";
 import asyncHandler from "express-async-handler";
-import paystackClient from "../utils/paystackClient"; // Import Axios instance
-import Payment from "../models/paymentModel"; // Import Payment model
-import { PaymentStatus } from "../utils/enumsUtil";
-import { AuthRequest } from "../middleware/authorization.mw";
+import ErrorResponse from "../utils/ApiError";
 
-export const initializePayment = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    const { amount, email, orderId } = req.body;
-
-    if (!amount || !email || !orderId) {
-      res.status(400);
-      throw new Error("Missing required fields: amount, email, or orderId");
-    }
-
-    try {
-      // Send initialization request to Paystack
-      const response = await paystackClient.post("/transaction/initialize", {
-        email,
-        amount: amount * 100, // Convert to kobo
-        callback_url: `${process.env.BASE_URL}/api/payments/verify`, // Callback for payment verification
-      });
-
-      if (!response.data.status) {
-        res.status(500);
-        throw new Error("Failed to initialize payment with Paystack");
+class PaymentController {
+  // 🚀 Initialize Payment
+  initializePayment = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const { orderId, email } = req.body;
+      if (!orderId || !email) {
+        return next(new ErrorResponse("Order ID and email are required.", 400));
       }
 
-      // Save payment record to the database
-      const payment = await Payment.create({
-        userId: req.user, // From auth middleware
+      const paymentData = await paymentServices.initializePayment(
         orderId,
-        paymentMethod: "Paystack",
-        paymentStatus: PaymentStatus.Pending,
-        transactionId: response.data.data.reference,
-        amount,
-      });
-
-      res.status(201).json({
-        message: "Payment initialized successfully",
-        authorization_url: response.data.data.authorization_url, // Redirect user here
-        payment,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        message: error.response?.data?.message || "Internal server error",
-      });
-    }
-  }
-);
-
-export const verifyPayment = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    const { reference } = req.query;
-
-    if (!reference) {
-      res.status(400);
-      throw new Error("Payment reference is required");
-    }
-
-    try {
-      // Verify transaction with Paystack
-      const response = await paystackClient.get(
-        `/transaction/verify/${reference}`
+        email
       );
+      res.status(200).json({ success: true, data: paymentData });
+    }
+  );
 
-      if (!response.data.status) {
-        res.status(500);
-        throw new Error("Failed to verify payment with Paystack");
+  // 🚀 Verify Payment
+  verifyPayment = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const { reference } = req.query;
+      if (!reference) {
+        return next(new ErrorResponse("Payment reference is required.", 400));
       }
 
-      const transaction = response.data.data;
+      const order = await paymentServices.verifyPayment(reference as string);
+      res.status(200).json({ success: true, data: order });
+    }
+  );
 
-      // Update payment status in the database
-      const payment = await Payment.findOneAndUpdate(
-        { transactionId: reference },
-        {
-          paymentStatus:
-            transaction.status === "success"
-              ? PaymentStatus.Success
-              : PaymentStatus.Failed,
-        },
-        { new: true }
-      );
+  // 🚀 Handle Paystack Webhook
+  handleWebhook = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const signature = req.headers["x-paystack-signature"] as
+          | string
+          | undefined;
+        const payload = req.body;
 
-      if (!payment) {
-        res.status(404);
-        throw new Error("Payment record not found");
+        const order = await paymentServices.handleWebhook(signature, payload);
+        if (!order) {
+          return next(new ErrorResponse("Webhook handling failed.", 400)); // Corrected: Call `next()`
+        }
+
+        res.status(200).json({ success: true, data: order });
+      } catch (error) {
+        next(error); // Ensure errors are properly passed to the error handler
+      }
+    }
+  );
+
+  // 🚀 Refund Payment
+  refundPayment = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const { transactionId } = req.body;
+      if (!transactionId) {
+        return next(new ErrorResponse("Transaction ID is required.", 400));
       }
 
-      res.status(200).json({
-        message: "Payment verified successfully",
-        payment,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        message: error.response?.data?.message || "Internal server error",
-      });
+      const refundData = await paymentServices.refundPayment(transactionId);
+      res.status(200).json({ success: true, data: refundData });
     }
-  }
-);
+  );
+}
 
-export const refundPayment = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { transactionId } = req.body;
-
-    if (!transactionId) {
-      res.status(400);
-      throw new Error("Transaction ID is required for a refund");
-    }
-
-    try {
-      // Initiate refund request to Paystack
-      const response = await paystackClient.post("/refund", {
-        transaction: transactionId,
-      });
-
-      if (!response.data.status) {
-        res.status(500);
-        throw new Error("Failed to process refund with Paystack");
-      }
-
-      res.status(200).json({
-        message: "Refund initiated successfully",
-        refund: response.data.data,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        message: error.response?.data?.message || "Internal server error",
-      });
-    }
-  }
-);
+export const paymentController = new PaymentController();

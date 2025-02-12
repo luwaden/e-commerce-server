@@ -1,24 +1,49 @@
-import mongoose, { mongo, Schema } from "mongoose";
-import { IPayment } from "../interface/paymentInterface";
+import mongoose, { Schema, Document } from "mongoose";
 import { PaymentStatus } from "../utils/enumsUtil";
+import { Payment } from "../interface/paymentInterface";
 
-const PaymentSchema: Schema<IPayment> = new Schema(
+const PaymentSchema = new Schema<Payment>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    orderId: { type: Schema.Types.ObjectId, ref: "Order", required: true },
-    paymentMethod: { type: String, required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
+    },
+    transactionId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    paymentReference: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     paymentStatus: {
       type: String,
       enum: Object.values(PaymentStatus),
       default: PaymentStatus.Pending,
     },
-    transactionId: { type: String, required: true, unique: true },
-    amount: { type: Number, required: true, min: 0 },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    isPaid: {
+      type: Boolean,
+      default: false,
+    },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const Payment = mongoose.model<IPayment>("Payment", PaymentSchema);
+const Payment = mongoose.model<Payment>("Payment", PaymentSchema);
 export default Payment;

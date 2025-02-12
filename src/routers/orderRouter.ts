@@ -1,16 +1,16 @@
 import { Router } from "express";
-import {
-  createOrder,
-  deleteOrder,
-  updateOrder,
-  getOrderById, // <-- Add this
-} from "../controllers/orderController";
+import { OrderController } from "../controllers/orderController";
+import authMiddleware from "../middleware/authorization.mw";
 
 const orderRouter = Router();
 
-orderRouter.post("/order/", createOrder);
-orderRouter.put("/order/:id", updateOrder);
-orderRouter.delete("/order/:id", deleteOrder);
-orderRouter.get("order/:id", getOrderById); // <-- Add this
+orderRouter.post("/order", authMiddleware, OrderController.createOrder);
+orderRouter.put("/order/:id", authMiddleware, OrderController.getUserOrders);
+orderRouter.delete(
+  "/order/:id",
+  authMiddleware,
+  OrderController.updateOrderPaymentStatus
+);
+orderRouter.get("order/:id", authMiddleware, OrderController.getOrderById); // <-- Add this
 
 export default orderRouter;

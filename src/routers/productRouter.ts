@@ -1,20 +1,21 @@
 import { Router, Request, Response, NextFunction } from "express";
-import {
-  getProducts,
-  postProducts,
-  updateProduct,
-  getOneProductBySlug,
-  getOneProductById,
-  deleteProduct,
-} from "../controllers/products.controller";
+import { ProductController } from "../controllers/products.controller";
 import authMiddleware from "../middleware/authorization.mw";
 
 const productsRouter = Router();
-productsRouter.post("/products", authMiddleware, postProducts);
-productsRouter.get("/products", getProducts);
-productsRouter.get("/products/slug/:slug", getOneProductBySlug);
-productsRouter.get("/products/:id", getOneProductById);
-productsRouter.put("/products/:id", authMiddleware, updateProduct);
-productsRouter.delete("/products/:id", authMiddleware, deleteProduct);
+productsRouter.post("/products", authMiddleware, ProductController.postProduct);
+productsRouter.get("/products", ProductController.getAllProducts);
+productsRouter.get("/products/slug/:slug", ProductController.getProductBySlug);
+productsRouter.get("/products/:id", ProductController.getProductById);
+productsRouter.put(
+  "/products/:id",
+  authMiddleware,
+  ProductController.getProductById
+);
+productsRouter.delete(
+  "/products/:id",
+  authMiddleware,
+  ProductController.deleteProduct
+);
 
 export default productsRouter;
