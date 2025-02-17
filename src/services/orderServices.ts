@@ -1,28 +1,40 @@
-import { Types } from "mongoose";
+import mongoose from "mongoose";
 import Order from "../models/orderModel";
 import Cart from "../models/cartModel";
 import { IOrder } from "../interface/orderInterface";
 import ErrorResponse from "../utils/ApiError";
 import { PaymentStatus, OrderStatus } from "../utils/enumsUtil";
+import crypto from "crypto";
 
 class orderServices {
   createOrder = async (
-    shippingInfo: any,
-    paymentReference: string,
-    userId: string | undefined
+    userId: string | undefined,
+    shippingAddress: any
   ): Promise<IOrder> => {
+    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+      throw new ErrorResponse("Invalid userId format", 400);
+    }
     const cart = await Cart.findOne({ userId }).populate("items.productId");
+
+    console.log("cart:", cart);
 
     if (!cart || cart.items.length === 0) {
       throw new ErrorResponse("Cart is empty", 400);
     }
 
+    // Generate a unique payment reference
+    const paymentReference = `PAYREF-${Date.now()}-${crypto
+      .randomBytes(8)
+      .toString("hex")}`;
+
     const order = new Order({
       userId,
       items: cart.items,
-      totalAmount: cart.totalPrice, // Use the cart's total price directly
-      shippingInfo,
-      paymentReference,
+      totalPrice: cart.totalPrice, // Use the cart's total price directly
+      shippingAddress: shippingAddress,
+      paymentReference: `PAYREF-${Date.now()}-${crypto
+        .randomBytes(8)
+        .toString("hex")}`, // Automatically generated reference
       paymentStatus: PaymentStatus.Pending,
       orderStatus: OrderStatus.Processing,
     });
@@ -33,13 +45,32 @@ class orderServices {
     return order;
   };
 
-  getUserOrders = async (userId: string | undefined): Promise<IOrder[]> => {
-    return Order.find({ userId }).sort({ createdAt: -1 });
-  };
+  async getUserOrders(userId: string | undefined) {
+    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+      throw new ErrorResponse("Unauthorized", 401);
+    }
 
-  getOrderById = async (orderId: string): Promise<IOrder | null> => {
-    return Order.findById(orderId).populate("items.productId");
-  };
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+    if (!orders || orders.length === 0) {
+      throw new ErrorResponse("No orders found for this user", 400);
+    }
+
+    return orders;
+  }
+
+  async getOrderById(orderId: string): Promise<IOrder> {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      throw new ErrorResponse("Invalid orderId format", 400);
+    }
+
+    const order = await Order.findById(orderId).populate("items.productId");
+
+    if (!order) {
+      throw new ErrorResponse("Order not found", 404);
+    }
+
+    return order;
+  }
 
   updateOrderPaymentStatus = async (
     reference: string,

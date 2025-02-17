@@ -7,39 +7,43 @@ import ErrorResponse from "../utils/ApiError";
 class cartServices {
   addToCart = async (
     userId: string | undefined,
-    productId: string,
-    quantity: number
+    items: { productId: string; quantity: number }[]
   ): Promise<ICart> => {
-    const productIdToObject = new Types.ObjectId(productId);
-    const product = await Product.findById(productIdToObject);
-    if (!product) throw new ErrorResponse("Product not found", 404);
+    if (!userId) throw new ErrorResponse("User ID is required", 400);
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new ErrorResponse("Items array is required", 400);
+    }
 
     let cart = await Cart.findOne({ userId });
     if (!cart) {
       cart = new Cart({ userId, items: [], totalPrice: 0 });
     }
-    const itemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === productId
-    );
 
-    if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += quantity;
-    } else {
-      cart.items.push({
-        productId: productIdToObject,
-        quantity,
-        price: 0,
-      });
+    for (const { productId, quantity } of items) {
+      const productIdToObject = new Types.ObjectId(productId);
+      const product = await Product.findById(productIdToObject);
+      if (!product)
+        throw new ErrorResponse(`Product ${productId} not found`, 404);
+
+      const itemIndex = cart.items.findIndex(
+        (item) => item.productId.toString() === productId
+      );
+
+      if (itemIndex > -1) {
+        cart.items[itemIndex].quantity += quantity;
+      } else {
+        cart.items.push({
+          productId: productIdToObject,
+          quantity,
+          price: product.price, // Store price at the time of adding to cart
+        });
+      }
     }
 
-    cart.totalPrice = (
-      await Promise.all(
-        cart.items.map(async (item) => {
-          const product = await Product.findById(item.productId);
-          return product ? product.price * item.quantity : 0;
-        })
-      )
-    ).reduce((total, price) => total + price, 0);
+    // Calculate total price
+    cart.totalPrice = cart.items.reduce((total, item) => {
+      return total + (item.price * item.quantity || 0);
+    }, 0);
 
     return cart.save();
   };

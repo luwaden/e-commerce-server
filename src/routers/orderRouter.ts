@@ -11,6 +11,12 @@ orderRouter.delete(
   authMiddleware,
   OrderController.updateOrderPaymentStatus
 );
+orderRouter.get(
+  "/order/my-orders",
+  authMiddleware,
+  OrderController.getUserOrders
+);
+
 orderRouter.get("order/:id", authMiddleware, OrderController.getOrderById); // <-- Add this
 
 export default orderRouter;

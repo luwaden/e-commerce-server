@@ -36,7 +36,8 @@ const authMiddleware: RequestHandler = (
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
-    authReq.userId = decoded.id; // Assign user ID correctly
+
+    authReq.userId = String(decoded.id); // Assign user ID correctly
     authReq.role = decoded.role;
     next();
   } catch (error) {

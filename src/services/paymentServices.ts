@@ -1,47 +1,81 @@
-import paystackClient from "../utils/paystackClient";
+import paystackAPI from "../utils/paystackClient";
 import Payment from "../models/paymentModel";
 import Order from "../models/orderModel";
 import { PaymentStatus, OrderStatus } from "../utils/enumsUtil";
 import ErrorResponse from "../utils/ApiError";
 import crypto from "crypto";
+import PaystackAPI from "../utils/paystackClient";
+import paymentQueue from "../utils/redisClient";
 
 class PaymentServices {
   // 🚀 Initialize Payment
   async initializePayment(orderId: string, email: string) {
-    const order = await Order.findById(orderId);
+    // Fetch order in a single query and return plain JavaScript object for efficiency
+    const order = await Order.findById(orderId).lean();
     if (!order) throw new ErrorResponse("Order not found.", 404);
 
     if (order.paymentStatus === PaymentStatus.Success) {
       throw new ErrorResponse("Payment already completed for this order.", 400);
     }
 
-    const paymentReference =
-      order.paymentReference || `ORD-${orderId}-${Date.now()}`;
+    let paymentReference = order.paymentReference;
 
-    const response = await paystackClient.post("/transaction/initialize", {
-      email,
-      amount: order.totalPrice * 100, // Convert to kobo
-      reference: paymentReference,
-      callback_url: `${process.env.BASE_URL}/api/payments/verify`,
-    });
+    // ✅ Generate a new reference ONLY if none exists
+    if (!paymentReference) {
+      paymentReference = `PAYREF-${Date.now()}-${crypto
+        .randomBytes(8)
+        .toString("hex")}`;
 
-    if (!response.data.status)
-      throw new ErrorResponse("Failed to initialize payment.", 500);
+      // ✅ Ensure the new reference is unique
+      const existingOrder = await Order.findOne({ paymentReference }).lean();
+      if (existingOrder) {
+        throw new ErrorResponse(
+          "Payment reference already exists. Please try again.",
+          400
+        );
+      }
 
-    if (!order.paymentReference) {
-      order.paymentReference = paymentReference;
-      await order.save();
+      // ✅ Store the reference in the database
+      await Order.updateOne({ _id: orderId }, { paymentReference });
     }
+
+    const response = await paystackAPI.request(
+      "post",
+      `/transaction/initialize`,
+      {
+        email,
+        amount: order.totalPrice * 100, // Convert to kobo
+        reference: paymentReference,
+        callback_url: `${process.env.BASE_URL}/api/payments/verify`,
+      }
+    );
+    console.log("Paystack Response:", response);
+
+    if (!response || !response.data || !response.data.status) {
+      throw new ErrorResponse("Failed to initialize payment.", 500);
+    }
+
+    // Only update the order if paymentReference was not set before
+    if (!order.paymentReference) {
+      await Order.updateOne(
+        { _id: orderId },
+        { $unset: { paymentReference: "" } }
+      );
+      throw new ErrorResponse("Failed to initialize payment.", 500);
+    }
+
+    await Order.updateOne({ _id: orderId }, { paymentReference });
 
     return {
       authorization_url: response.data.data.authorization_url,
-      orderId: order._id,
+      orderId: orderId,
     };
   }
 
   // 🚀 Verify Payment & Update Order
   async verifyPayment(reference: string) {
-    const response = await paystackClient.get(
+    const response = await paystackAPI.request(
+      "get",
       `/transaction/verify/${reference}`
     );
     if (!response.data.status)
@@ -67,10 +101,10 @@ class PaymentServices {
     return order;
   }
 
-  // 🚀 Handle Paystack Webhook
   async handleWebhook(signature: string | undefined, payload: any) {
     if (!signature) throw new ErrorResponse("Signature required.", 400);
 
+    // ✅ Verify webhook signature
     const hash = crypto
       .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY!)
       .update(JSON.stringify(payload))
@@ -80,34 +114,15 @@ class PaymentServices {
 
     const { event, data } = payload;
 
+    // ✅ Add successful payment to Redis-backed queue for async processing
     if (event === "charge.success") {
-      const reference = data.reference;
-      const transactionStatus =
-        data.status === "success"
-          ? PaymentStatus.Success
-          : PaymentStatus.Failed;
-
-      const order = await Order.findOneAndUpdate(
-        { paymentReference: reference },
-        {
-          paymentStatus: transactionStatus,
-          isPaid: transactionStatus === PaymentStatus.Success,
-          paidAt:
-            transactionStatus === PaymentStatus.Success ? new Date() : null,
-          orderStatus:
-            transactionStatus === PaymentStatus.Success
-              ? OrderStatus.Processing
-              : OrderStatus.Pending,
-        },
-        { new: true }
+      console.log(
+        `✅ Adding payment processing job for reference ${data.reference}`
       );
-
-      if (!order)
-        console.error(`❌ Order with reference ${reference} not found.`);
-      return order;
+      await paymentQueue.add(data);
+    } else {
+      console.log(`Unhandled Paystack event: ${event}`);
     }
-
-    console.log(`Unhandled Paystack event: ${event}`);
   }
 
   // 🚀 Refund Payment
@@ -125,7 +140,7 @@ class PaymentServices {
     const order = await Order.findById(payment.orderId);
     if (!order) throw new ErrorResponse("Associated order not found.", 404);
 
-    const response = await paystackClient.post("/refund", {
+    const response = await PaystackAPI.request("post", "/refund", {
       transaction: transactionId,
     });
 

@@ -43,7 +43,7 @@ export const userRegister = asyncHandler(
       });
       return;
     }
- 
+
     // Create the new user
     const newUser = new User({
       email,
@@ -61,7 +61,6 @@ export const userRegister = asyncHandler(
         expiresIn: process.env.VERFIFY_EMAIL_JWT_EXPIRES,
       }
     );
-  
 
     const message = `Click on the link below to verify your email:  \n http://localhost:3000/api/v1/users/verify?token=${token}`;
 
@@ -112,12 +111,13 @@ export const userLogin = asyncHandler(async (req: Request, res: Response) => {
     }
   );
   console.log(token);
-  
 
   // Respond with success
   res.status(200).json({
     error: false,
-    data: token,
+    userId: user._id,
+    token,
+
     message: "Login successful",
   });
 });

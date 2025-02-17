@@ -1,10 +1,9 @@
-import { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 import { OrderStatus, PaymentStatus } from "../utils/enumsUtil";
 
 export interface IOrderItem {
-  productId: Types.ObjectId;
+  productId: mongoose.Schema.Types.ObjectId;
   quantity: number;
-  price: number;
 }
 
 export interface IShippingAddress {
@@ -15,8 +14,9 @@ export interface IShippingAddress {
   country: string;
 }
 
-export interface IOrder extends Document {
-  userId: Types.ObjectId;
+export interface IOrder {
+  _id?: string;
+  userId: string;
   items: IOrderItem[];
   shippingAddress: IShippingAddress;
   totalPrice: number;

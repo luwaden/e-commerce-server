@@ -9,13 +9,10 @@ class orderController {
     async (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       const userId = authReq.userId;
-      const { shippingInfo, paymentReference } = req.body;
 
-      const order = await OrderServices.createOrder(
-        userId,
-        shippingInfo,
-        paymentReference
-      );
+      const { shippingAddress } = req.body;
+
+      const order = await OrderServices.createOrder(userId, shippingAddress);
 
       res.status(201).json({
         message: "Order created successfully",
@@ -26,7 +23,7 @@ class orderController {
   );
 
   getUserOrders = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       const userId = authReq.userId;
 
@@ -41,7 +38,10 @@ class orderController {
   );
 
   getOrderById = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+      const authReq = req as AuthRequest;
+      const userId = authReq.userId;
+
       const { orderId } = req.params;
       const order = await OrderServices.getOrderById(orderId);
 

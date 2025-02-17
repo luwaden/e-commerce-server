@@ -11,6 +11,7 @@ import authRouter from "./routers/auth.routes";
 import cartRouter from "./routers/cartRouter";
 import orderRouter from "./routers/orderRouter";
 import userProfileRouter from "./routers/profileRouter";
+import paymentRouter from "./routers/paymentRouter";
 
 dotenv.config();
 const app = express();
@@ -29,6 +30,8 @@ app.use("/api", cartRouter);
 app.use("/api", authRouter);
 app.use("/api", orderRouter);
 app.use("/api", userProfileRouter);
+app.use("/api", paymentRouter);
+
 app.use(errorHandler);
 
 const PORT = process.env.PORT;

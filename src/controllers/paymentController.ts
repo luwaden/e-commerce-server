@@ -23,12 +23,12 @@ class PaymentController {
   // 🚀 Verify Payment
   verifyPayment = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
-      const { reference } = req.query;
+      const reference = req.params.reference; // Use params instead of query
       if (!reference) {
         return next(new ErrorResponse("Payment reference is required.", 400));
       }
 
-      const order = await paymentServices.verifyPayment(reference as string);
+      const order = await paymentServices.verifyPayment(reference);
       res.status(200).json({ success: true, data: order });
     }
   );
@@ -36,21 +36,15 @@ class PaymentController {
   // 🚀 Handle Paystack Webhook
   handleWebhook = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const signature = req.headers["x-paystack-signature"] as
-          | string
-          | undefined;
-        const payload = req.body;
+      const signature = req.headers["x-paystack-signature"] as
+        | string
+        | undefined;
+      const payload = req.body;
 
-        const order = await paymentServices.handleWebhook(signature, payload);
-        if (!order) {
-          return next(new ErrorResponse("Webhook handling failed.", 400)); // Corrected: Call `next()`
-        }
+      await paymentServices.handleWebhook(signature, payload);
 
-        res.status(200).json({ success: true, data: order });
-      } catch (error) {
-        next(error); // Ensure errors are properly passed to the error handler
-      }
+      // ✅ Always respond with 200 to acknowledge webhook processing
+      res.sendStatus(200);
     }
   );
 
@@ -67,5 +61,7 @@ class PaymentController {
     }
   );
 }
+
+export default new PaymentController();
 
 export const paymentController = new PaymentController();

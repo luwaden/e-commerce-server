@@ -1,42 +1,41 @@
 import mongoose, { Schema } from "mongoose";
 import { IOrder } from "../interface/orderInterface";
 import { OrderStatus, PaymentStatus } from "../utils/enumsUtil";
+
 const orderSchema = new Schema<IOrder>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: String, required: true },
     items: [
       {
         productId: {
-          type: Schema.Types.ObjectId,
+          type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
           required: true,
-        },
+        }, // Or String
         quantity: { type: Number, required: true },
       },
     ],
+    totalPrice: { type: Number, required: true },
     shippingAddress: {
       fullName: { type: String, required: true },
       address: { type: String, required: true },
       city: { type: String, required: true },
       postalCode: { type: String, required: true },
       country: { type: String, required: true },
+      // ... other shipping address fields
     },
-
-    totalPrice: { type: Number, required: true },
-    paymentStatus: {
-      type: String,
-      enum: Object.values(PaymentStatus) as string[],
-      default: PaymentStatus.Pending,
-    },
+    paymentReference: { type: String, required: true, unique: true },
+    paymentStatus: { type: String, required: true },
     orderStatus: {
       type: String,
-      enum: Object.values(OrderStatus) as string[],
+      enum: Object.values(OrderStatus),
       default: OrderStatus.Processing,
+      required: true,
     },
-    paymentReference: { type: String, unique: true }, // ✅ Add this field
   },
   { timestamps: true }
-);
+); // Important: Enable timestamps if you want createdAt/updatedAt
 
 const Order = mongoose.model<IOrder>("Order", orderSchema);
+
 export default Order;

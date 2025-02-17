@@ -5,12 +5,23 @@ import { AuthRequest } from "../middleware/authorization.mw";
 
 class cartController {
   addToCart = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const { quantity } = req.body;
-      const { productId } = req.params;
+    async (
+      req: AuthRequest,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      const { items } = req.body;
       const authReq = req as AuthRequest;
       const userId = authReq.userId;
-      const cart = await CartServices.addToCart(userId, productId, quantity);
+
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({
+          message: "Items array is required",
+          error: true,
+        });
+      }
+
+      const cart = await CartServices.addToCart(userId, items);
 
       res.status(200).json({
         message: "Item added to cart successfully",
