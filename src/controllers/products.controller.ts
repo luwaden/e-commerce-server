@@ -5,14 +5,29 @@ import ProductModel from "../models/productsModel";
 import { AuthRequest } from "../middleware/authorization.mw";
 
 class productController {
-  postProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const product = await ProductServices.postProducts(req, res);
+  postProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { productsData } = req.body;
+    const { userId, role } = req;
+
+    if (role !== "admin") {
+      res.status(403);
+      throw new Error("Unauthorized: Admin access required");
+    }
+
+    if (!userId) {
+      res.status(400);
+      throw new Error("User ID is required");
+    }
+
+    const products = await ProductServices.postProducts(userId, productsData);
+
     res.status(201).json({
-      message: "Product posted  successfully",
-      data: product,
+      message: "Products created successfully",
+      data: products,
       error: false,
     });
   });
+
   getAllProducts = asyncHandler(async (req: Request, res: Response) => {
     const products = await ProductServices.getProducts(req, res);
     res.status(200).json({

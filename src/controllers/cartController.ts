@@ -13,12 +13,37 @@ class cartController {
       const { items } = req.body;
       const authReq = req as AuthRequest;
       const userId = authReq.userId;
+      console.log(userId);
+
+      if (!userId) {
+        res.status(401).json({
+          message: "Authentication required",
+          error: true,
+        });
+      }
 
       if (!Array.isArray(items) || items.length === 0) {
         res.status(400).json({
           message: "Items array is required",
           error: true,
         });
+      }
+
+      const isValidItems = items.every(
+        (item: any) =>
+          item.productId &&
+          typeof item.productId === "string" &&
+          typeof item.quantity === "number" &&
+          item.quantity > 0
+      );
+
+      if (!isValidItems) {
+        res.status(400).json({
+          message:
+            "Invalid items format. Each item must have productId and quantity > 0",
+          error: true,
+        });
+        return;
       }
 
       const cart = await CartServices.addToCart(userId, items);

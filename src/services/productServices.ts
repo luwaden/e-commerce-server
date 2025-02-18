@@ -1,11 +1,18 @@
 import express, { Request, Response, NextFunction } from "express";
-
+import { IProduct } from "../interface/productsInterfcae";
 import asyncHandler from "express-async-handler";
 import ProductModel from "../models/productsModel";
 import { AuthRequest } from "../middleware/authorization.mw";
-
+import { Types } from "mongoose";
 class productServices {
-  postProducts = async (req: AuthRequest, res: Response) => {
+  postProducts = async (
+    userId: string,
+    productsData: IProduct[] | IProduct
+  ) => {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid User ID format");
+    }
+
     const requiredFields = [
       "name",
       "slug",
@@ -18,30 +25,32 @@ class productServices {
       "rating",
       "numReviews",
     ];
-    if (req.role !== "admin") {
-      res.status(403);
-      throw new Error("Unauthorized: Admin access required");
-    }
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        res.status(400);
-        throw new Error(`Please provide the ${field} field`);
-      }
-    }
 
-    const product = await ProductModel.create({
-      ...req.body,
-      createdBy: req.userId,
+    const products = Array.isArray(productsData)
+      ? productsData
+      : [productsData];
+
+    products.forEach((product, index) => {
+      requiredFields.forEach((field) => {
+        if (!product[field as keyof IProduct]) {
+          throw new Error(
+            `Missing required field '${field}' in product at index ${index}`
+          );
+        }
+      });
     });
 
-    console.log(req.userId);
+    const userObjectId = new Types.ObjectId(userId);
 
-    res.status(201).json({
-      message: "Product created successfully",
-      data: product,
-    });
+    const productsWithUser = products.map((product) => ({
+      ...product,
+      userId: userObjectId,
+      createdBy: userObjectId,
+      updatedBy: userObjectId,
+    }));
+
+    return await ProductModel.insertMany(productsWithUser, { ordered: true });
   };
-
   getProducts = async (req: Request, res: Response) => {
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 10;

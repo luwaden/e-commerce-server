@@ -38,7 +38,7 @@ const authMiddleware: RequestHandler = (
     const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
 
     authReq.userId = String(decoded.id); // Assign user ID correctly
-    authReq.role = decoded.role;
+    authReq.role = String(decoded.role);
     next();
   } catch (error) {
     res.status(401).json({ message: "Token is not valid" });
